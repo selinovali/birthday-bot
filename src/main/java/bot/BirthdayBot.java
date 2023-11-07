@@ -10,9 +10,9 @@ import reactor.core.publisher.Mono;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BirthdayBot {
     public static void main(String[] args) {
@@ -20,7 +20,6 @@ public class BirthdayBot {
         // Establish connection with Discord Bot using token
         DiscordClient client = DiscordClient.create(getTokenFromFile());
         Mono<Void> login = client.withGateway((GatewayDiscordClient gateway) -> {
-            // ReadyEvent example
             Mono<Void> printOnLogin = gateway.on(ReadyEvent.class, event ->
                             Mono.fromRunnable(() -> {
                                 final User self = event.getSelf();
@@ -28,13 +27,29 @@ public class BirthdayBot {
                             }))
                     .then();
 
-            // MessageCreateEvent example
             Mono<Void> handlePingCommand = gateway.on(MessageCreateEvent.class, event -> {
                 Message message = event.getMessage();
+                String originalMessage = message.getContent();
 
-                if (message.getContent().equalsIgnoreCase(".addbirthday")) {
-                    // Validate birthday in message string
-                    // If wrong, print birthday format
+                if (originalMessage.substring(0,12).equalsIgnoreCase(".addbirthday")) {
+
+                    // If message shorter than min length, message channel with correct format
+                    if (originalMessage.length() < 23) {
+                        return message.getChannel()
+                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday mm-dd-YYYY`"));
+                    }
+
+                    // Remove '.addbirthday' and  all trailing spaces from string => "mm-dd-YYYY
+                    String birthdayString = originalMessage.substring(12).replaceAll("\\s", "");
+
+                    // Check if the birthday string is formatted correctly
+                    if(validateBirthday(birthdayString)) {
+                        System.out.println(birthdayString);
+                    } else {
+                        return message.getChannel()
+                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday mm-dd-YYYY`"));
+                    }
+
                     return message.getChannel()
                             .flatMap(channel -> channel.createMessage("I'll remember your birthday!"));
                 }
@@ -42,20 +57,31 @@ public class BirthdayBot {
                 return Mono.empty();
             }).then();
 
-            // combine them!
             return printOnLogin.and(handlePingCommand);
         });
         login.block();
     }
 
-    /* Returns date in format: YYYY-MM-DD */
-    public String getDate() {
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+    /* Checks string against exact expected format: "mm-dd-yyyy"
+       Regex tested using regex101: "(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])\-(19[4-9][0-9]|20[01][0-9]|202[0-3])"
+    * */
+    public static boolean validateBirthday(String str) {
+        Pattern pattern = Pattern.compile("(0[1-9]|1[012])\\-(0[1-9]|[12][0-9]|3[01])\\-(19[4-9][0-9]|20[01][0-9]|202[0-3])", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(str);
+
+        return matcher.find();
+    }
+
+    /* Returns date in format: yyyy-mm-dd
+    * */
+    public static String getDate() {
         String date = java.time.LocalDate.now().toString();
+        // System.out.println(date);
         return date;
     }
 
-    /* Function retrieves the token from txt file and returns as a String */
+    /* Function retrieves the token from txt file and returns as a String
+    * */
     public static String getTokenFromFile() {
         try {
             // Read the token.txt file, which has the Discord bot auth token
