@@ -1,5 +1,6 @@
 package bot;
 
+import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.lifecycle.ReadyEvent;
@@ -14,9 +15,11 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class BirthdayBot {
     public static void main(String[] args) {
-
         // Establish connection with Discord Bot using token
         DiscordClient client = DiscordClient.create(getTokenFromFile());
         Mono<Void> login = client.withGateway((GatewayDiscordClient gateway) -> {
@@ -31,12 +34,16 @@ public class BirthdayBot {
                 Message message = event.getMessage();
                 String originalMessage = message.getContent();
 
-                if (originalMessage.substring(0,12).equalsIgnoreCase(".addbirthday")) {
+                // Get user ID }
+                Snowflake snowflake = message.getAuthor().get().getId();
+                String id = snowflake.toString().substring(10,28);
+                // message.getChannel().flatMap(channel -> channel.createMessage("Testing mention <@448532794189021185>"));
 
+                if (originalMessage.substring(0,12).equalsIgnoreCase(".addbirthday")) {
                     // If message shorter than min length, message channel with correct format
                     if (originalMessage.length() < 23) {
                         return message.getChannel()
-                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday mm-dd-YYYY`"));
+                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday MM-dd-YYYY`"));
                     }
 
                     // Remove '.addbirthday' and  all trailing spaces from string => "mm-dd-YYYY
@@ -47,8 +54,10 @@ public class BirthdayBot {
                         System.out.println(birthdayString);
                     } else {
                         return message.getChannel()
-                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday mm-dd-YYYY`"));
+                                .flatMap(channel -> channel.createMessage("Please tell me your birthday in this format: `.addbirthday MM-dd-YYYY`"));
                     }
+
+                    // TO DO: Add birthday to database
 
                     return message.getChannel()
                             .flatMap(channel -> channel.createMessage("I'll remember your birthday!"));
@@ -62,7 +71,7 @@ public class BirthdayBot {
         login.block();
     }
 
-    /* Checks string against exact expected format: "mm-dd-yyyy"
+    /* Checks string against exact expected format: "MM-dd-YYYY"
        Regex tested using regex101: "(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])\-(19[4-9][0-9]|20[01][0-9]|202[0-3])"
     * */
     public static boolean validateBirthday(String str) {
@@ -72,12 +81,15 @@ public class BirthdayBot {
         return matcher.find();
     }
 
-    /* Returns date in format: yyyy-mm-dd
+    /* Returns date in format: MM-dd-YYYY
     * */
     public static String getDate() {
-        String date = java.time.LocalDate.now().toString();
-        // System.out.println(date);
-        return date;
+
+        SimpleDateFormat formatter = new SimpleDateFormat("MM-dd-yyyy");
+        Date date = new Date();
+        String current_date = formatter.format(date);
+
+        return current_date;
     }
 
     /* Function retrieves the token from txt file and returns as a String
