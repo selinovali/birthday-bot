@@ -43,3 +43,4 @@ bin/
 
 ### Ignore Discord Token ###
 /src/main/java/bot/token.txt
+/src/main/java/bot/db_token.txt
